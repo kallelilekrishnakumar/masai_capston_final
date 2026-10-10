@@ -1,0 +1,176 @@
+{
+  "fixed": {
+    "mode": "lexical-fallback",
+    "calibration": {
+      "threshold": 0.09365858115816941,
+      "in_scope": {
+        "What is the return window for Beauty products?": 0.3721042037676254,
+        "How long can a COD refund take?": 0.2211629342323457,
+        "What is the delivery SLA after dispatch?": 0.18731716231633883
+      },
+      "out_of_scope": {
+        "Who won the 2030 World Cup?": 0,
+        "Explain quantum entanglement and black holes.": 0
+      },
+      "clusters_separated": true,
+      "strategy": "fixed",
+      "mode": "lexical-fallback"
+    },
+    "precision_recall": [
+      {
+        "query": "What is the return window for Beauty products?",
+        "retrieved_docs": [
+          "return-window",
+          "reverse-pickup",
+          "warranty"
+        ],
+        "relevant_docs": [
+          "return-window"
+        ],
+        "arithmetic": "precision=1/3; recall=1/1",
+        "precision": 0.333,
+        "recall": 1.0
+      },
+      {
+        "query": "How long can a COD refund take?",
+        "retrieved_docs": [
+          "cod-refunds",
+          "delivery-sla",
+          "damaged-claim"
+        ],
+        "relevant_docs": [
+          "cod-refunds"
+        ],
+        "arithmetic": "precision=1/3; recall=1/1",
+        "precision": 0.333,
+        "recall": 1.0
+      },
+      {
+        "query": "What is the delivery SLA after dispatch?",
+        "retrieved_docs": [
+          "delivery-sla",
+          "international-shipping",
+          "damaged-claim"
+        ],
+        "relevant_docs": [
+          "delivery-sla"
+        ],
+        "arithmetic": "precision=1/3; recall=1/1",
+        "precision": 0.333,
+        "recall": 1.0
+      },
+      {
+        "query": "Can I exchange an Apparel size?",
+        "retrieved_docs": [
+          "size-exchange",
+          "warranty",
+          "return-window"
+        ],
+        "relevant_docs": [],
+        "arithmetic": "precision=0/3; recall=0/0",
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "query": "How do I report a damaged item?",
+        "retrieved_docs": [
+          "size-exchange",
+          "reverse-pickup",
+          "damaged-claim"
+        ],
+        "relevant_docs": [
+          "damaged-claim"
+        ],
+        "arithmetic": "precision=1/3; recall=1/1",
+        "precision": 0.333,
+        "recall": 1.0
+      }
+    ]
+  },
+  "sentence": {
+    "mode": "lexical-fallback",
+    "calibration": {
+      "threshold": 0.11547005383792516,
+      "in_scope": {
+        "What is the return window for Beauty products?": 0.35355339059327373,
+        "How long can a COD refund take?": 0.28867513459481287,
+        "What is the delivery SLA after dispatch?": 0.23094010767585033
+      },
+      "out_of_scope": {
+        "Who won the 2030 World Cup?": 0,
+        "Explain quantum entanglement and black holes.": 0
+      },
+      "clusters_separated": true,
+      "strategy": "sentence",
+      "mode": "lexical-fallback"
+    },
+    "precision_recall": [
+      {
+        "query": "What is the return window for Beauty products?",
+        "retrieved_docs": [
+          "return-window",
+          "reverse-pickup"
+        ],
+        "relevant_docs": [
+          "return-window"
+        ],
+        "arithmetic": "precision=1/2; recall=1/1",
+        "precision": 0.5,
+        "recall": 1.0
+      },
+      {
+        "query": "How long can a COD refund take?",
+        "retrieved_docs": [
+          "cod-refunds",
+          "cancellation",
+          "damaged-claim"
+        ],
+        "relevant_docs": [
+          "cod-refunds"
+        ],
+        "arithmetic": "precision=1/3; recall=1/1",
+        "precision": 0.333,
+        "recall": 1.0
+      },
+      {
+        "query": "What is the delivery SLA after dispatch?",
+        "retrieved_docs": [
+          "delivery-sla",
+          "international-shipping",
+          "damaged-claim"
+        ],
+        "relevant_docs": [
+          "delivery-sla"
+        ],
+        "arithmetic": "precision=1/3; recall=1/1",
+        "precision": 0.333,
+        "recall": 1.0
+      },
+      {
+        "query": "Can I exchange an Apparel size?",
+        "retrieved_docs": [
+          "size-exchange",
+          "warranty"
+        ],
+        "relevant_docs": [],
+        "arithmetic": "precision=0/2; recall=0/0",
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "query": "How do I report a damaged item?",
+        "retrieved_docs": [
+          "size-exchange",
+          "return-window",
+          "reverse-pickup"
+        ],
+        "relevant_docs": [
+          "damaged-claim"
+        ],
+        "arithmetic": "precision=0/3; recall=0/1",
+        "precision": 0.0,
+        "recall": 0.0
+      }
+    ]
+  }
+}
