@@ -91,26 +91,75 @@ class SupportOrchestrator:
         self.memory.add(session_id,"assistant",result.answer)
         return result
 
-def build_crewai_crew(orchestrator=None):
-    """Optional real CrewAI crew; Lookup Agent alone receives the order tool."""
+def build_crewai_crew(orchestrator=None, llm=None):
+    """Real CrewAI crew run via ``.kickoff()`` under MOCK_LLM with zero API keys.
+
+    The deterministic ``MockCrewLLM`` (see ``mock_llm.py``) is the brain: it emits
+    ReAct text so CrewAI's own orchestration loop drives the real tools. Only the
+    Lookup Agent is wired to ``check_order_status``; the Composer has no tools.
+    """
     from crewai import Agent, Crew, Process, Task
     from crewai.tools import tool
-    orchestrator=orchestrator or SupportOrchestrator()
+    from mock_llm import MockCrewLLM
+    orchestrator = orchestrator or SupportOrchestrator()
+    llm = llm or MockCrewLLM(model="mock-llm")
+
     @tool("retrieve_policy")
     def retrieve_policy(query: str) -> str:
         """Retrieve a grounded answer from the local Nykaa policy knowledge base."""
-        return str(orchestrator.rag_tool(query))
+        result = orchestrator.rag_tool(query)
+        return result.get("answer", str(result)) if isinstance(result, dict) else str(result)
+
     @tool("check_order_status")
     def order_lookup(record_id: str) -> str:
         """Look up a synthetic order by record ID. Only Lookup Agent is given this tool."""
-        return str(orchestrator.lookup_tool(record_id,agent_name="Lookup Agent"))
-    retrieval=Agent(role="Retrieval Agent",goal="Answer policy questions using retrieved policy text only.",
-        backstory="A careful retrieval specialist.",tools=[retrieve_policy],verbose=False)
-    lookup=Agent(role="Lookup Agent",goal="Look up synthetic order records and report exact status.",
-        backstory="A constrained order-record specialist.",tools=[order_lookup],verbose=False)
-    composer=Agent(role="Response Composer",goal="Combine agent findings without inventing facts.",
-        backstory="A conservative customer support writer.",tools=[],verbose=False)
-    t1=Task(description="For this request, retrieve relevant policy context if it is a policy question: {query}",agent=retrieval,expected_output="Retrieved context or explicit unsupported result.")
-    t2=Task(description="If an order ID appears in {query}, look it up. Otherwise say no lookup was needed.",agent=lookup,expected_output="Order details or no lookup needed.")
-    t3=Task(description="Compose a concise grounded answer to: {query}. Do not add unsupported policy claims.",agent=composer,context=[t1,t2],expected_output="A safe customer-support answer.")
-    return Crew(agents=[retrieval,lookup,composer],tasks=[t1,t2,t3],process=Process.sequential,verbose=False)
+        info = orchestrator.lookup_tool(record_id, agent_name="Lookup Agent")
+        if isinstance(info, dict) and "error" in info:
+            return info["error"]
+        return (f"Order {info['record_id']} is {info['status']}. Order value: Rs.{info['order_value_inr']}. "
+                f"Escalation score: {info['escalation_score']:.3f}. "
+                f"{'Recommended for escalation.' if info['escalation_recommended'] else 'No escalation threshold reached.'}")
+
+    retrieval = Agent(role="Retrieval Agent", goal="Answer policy questions using retrieved policy text only.",
+        backstory="A careful retrieval specialist.", tools=[retrieve_policy], llm=llm, verbose=False)
+    lookup = Agent(role="Lookup Agent", goal="Look up synthetic order records and report exact status.",
+        backstory="A constrained order-record specialist.", tools=[order_lookup], llm=llm, verbose=False)
+    composer = Agent(role="Response Composer", goal="Combine agent findings without inventing facts.",
+        backstory="A conservative customer support writer.", tools=[], llm=llm, verbose=False)
+    t1 = Task(description="For this request, retrieve relevant policy context if it is a policy question: {query}", agent=retrieval, expected_output="Retrieved context or explicit unsupported result.")
+    t2 = Task(description="If an order ID appears in {query}, look it up. Otherwise say no lookup was needed.", agent=lookup, expected_output="Order details or no lookup needed.")
+    t3 = Task(description="Compose a concise grounded answer to: {query}. Do not add unsupported policy claims.", agent=composer, context=[t1, t2], expected_output="A safe customer-support answer.")
+    return Crew(agents=[retrieval, lookup, composer], tasks=[t1, t2, t3], process=Process.sequential, verbose=False), orchestrator
+
+
+def run_crewai_kickoff_demo(queries=None, orchestrator=None):
+    """Run the real CrewAI crew via ``.kickoff()`` and return transcript lines.
+
+    Demonstrates that both the RAG tool (``retrieve_policy``) and the order-lookup
+    tool (``check_order_status``) are actually invoked through CrewAI's loop on
+    different queries. Evidence is the orchestrator's ``tool_calls`` counter,
+    which the real tools increment only when CrewAI calls them.
+    """
+    try:
+        from crewai.events.listeners.tracing import set_suppress_tracing_messages
+        set_suppress_tracing_messages(True)
+    except Exception:
+        pass
+
+    queries = queries or [
+        "What is the return window for Beauty products?",
+        "Please check order NYK-0001",
+    ]
+    crew, orchestrator = build_crewai_crew(orchestrator=orchestrator)
+    before = dict(orchestrator.tool_calls)
+    lines = ["=== CREWAI CREW (.kickoff()) ==="]
+    for q in queries:
+        result = crew.kickoff(inputs={"query": q})
+        lines += [f"Query: {q}", f"Kickoff result: {str(result)}"]
+    after = dict(orchestrator.tool_calls)
+    lines += [f"Tool invocations via .kickoff(): {after} (was {before})",
+              f"  retrieve_policy calls: {after['rag'] - before['rag']}",
+              f"  check_order_status calls: {after['lookup'] - before['lookup']}"]
+    if after["rag"] <= before["rag"] or after["lookup"] <= before["lookup"]:
+        lines += ["WARNING: expected both tools to be invoked via .kickoff()."]
+    return lines, orchestrator
