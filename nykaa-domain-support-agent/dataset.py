@@ -101,6 +101,10 @@ def distribution(rows: list[dict] = ORDERS) -> dict:
         "delayed_percentage": round(100 * sum(r["delayed_shipment"] for r in rows) / len(rows), 2),
         "days_since_created_sorted": ages,
         "p80_days_since_created": ages[min(len(ages)-1, int(0.80 * len(ages)))],
+        "escalation_formula": "status_factor * (0.4*delayed_shipment + 0.6*days_since_created/30); "
+                              "status_factor=1.0 for Placed/Shipped else 0.5",
+        "escalation_threshold_p80": escalation_threshold(rows),
+        "escalation_recommended_count": sum(escalation_score(r) >= escalation_threshold(rows) for r in rows),
     }
 
 if __name__ == "__main__":
