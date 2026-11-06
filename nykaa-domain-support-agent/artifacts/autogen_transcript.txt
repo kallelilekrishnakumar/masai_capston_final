@@ -1,0 +1,9 @@
+=== AUTOGEN REVIEW STAGE (RoundRobinGroupChat, max_turns=2) ===
+Case 1 (approve-unchanged):
+  draft: Eligible COD refunds target 5-7 business days after inspection.
+  verdict: approved=True | reason=No unsupported claim detected; approved unchanged.
+  final_answer: Eligible COD refunds target 5-7 business days after inspection.
+Case 2 (revise after injected ungrounded claim):
+  draft: Eligible COD refunds target 5-7 business days after inspection. Guaranteed delivery tomorrow is confirmed.
+  verdict: approved=False | reason=Policy-Compliance-Reviewer flagged an unsupported guarantee; Final-Editor removed it.
+  final_answer: Eligible COD refunds target 5-7 business days after inspection.

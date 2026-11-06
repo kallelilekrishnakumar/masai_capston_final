@@ -6,6 +6,18 @@ from dataclasses import dataclass
 class BudgetExceeded(ValueError): pass
 class UnauthorizedToolUse(PermissionError): pass
 
+# Application-layer risk classification (Task 15).
+# Low = summarization/transcription; Medium = code generation / customer-support
+# tickets; High = medical, hiring, financial data. This advisory support tool is Medium.
+RISK_CLASSIFICATION = "Medium"
+RISK_JUSTIFICATION = (
+    "Customer-support ticket tool: answers policy questions and surfaces synthetic "
+    "order status. Advisory only - no order modification, payment, refund, or account "
+    "action. Phone numbers and card last-4 are masked before the model and logging; "
+    "free-text names/addresses are out of scope for a keyless masker (fabricated "
+    "examples only)."
+)
+
 def enforce_tool_access(agent_name: str, tool_name: str):
     allowed={"Lookup Agent":{"check_order_status"}}
     if tool_name not in allowed.get(agent_name,set()):

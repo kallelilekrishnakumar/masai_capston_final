@@ -66,10 +66,12 @@
           "return-window",
           "loyalty-points"
         ],
-        "relevant_docs": [],
-        "arithmetic": "precision=0/3; recall=0/0",
-        "precision": 0.0,
-        "recall": 0.0
+        "relevant_docs": [
+          "size-exchange"
+        ],
+        "arithmetic": "precision=1/3; recall=1/1",
+        "precision": 0.333,
+        "recall": 1.0
       },
       {
         "query": "How do I report a damaged item?",
@@ -152,10 +154,12 @@
           "return-window",
           "warranty"
         ],
-        "relevant_docs": [],
-        "arithmetic": "precision=0/3; recall=0/0",
-        "precision": 0.0,
-        "recall": 0.0
+        "relevant_docs": [
+          "size-exchange"
+        ],
+        "arithmetic": "precision=1/3; recall=1/1",
+        "precision": 0.333,
+        "recall": 1.0
       },
       {
         "query": "How do I report a damaged item?",

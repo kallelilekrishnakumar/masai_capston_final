@@ -17,9 +17,7 @@ class Order:
     days_since_created: int
     delayed_shipment: bool
 
-def generate_orders(seed: int = SEED, n: int = 50) -> list[dict]:
-    if n < 40:
-        raise ValueError("n must be at least 40")
+def _generate_with_seed(seed: int, n: int) -> list[dict]:
     rng = random.Random(seed)
     rows = []
     # Guarantee category and status coverage through the seeded sampling plan, not hand edits.
@@ -34,14 +32,21 @@ def generate_orders(seed: int = SEED, n: int = 50) -> list[dict]:
             days_since_created=rng.randint(0, 30),
             delayed_shipment=(rng.random() < 0.20),
         )))
-    rate = sum(x["delayed_shipment"] for x in rows) / len(rows)
-    # If the seeded sample is outside the required band, regenerate with deterministic seed offsets.
+    return rows
+
+def generate_orders(seed: int = SEED, n: int = 50) -> list[dict]:
+    if n < 40:
+        raise ValueError("n must be at least 40")
+    # Reseed with deterministic offsets until the delayed-shipment rate lands in the required band.
     attempt = 0
-    while not 0.10 <= rate <= 0.30:
+    while True:
+        rows = _generate_with_seed(seed + attempt, n)
+        rate = sum(x["delayed_shipment"] for x in rows) / len(rows)
+        if 0.10 <= rate <= 0.30:
+            break
         attempt += 1
         if attempt > 100:
             raise RuntimeError("Could not generate delay rate in required band")
-        return generate_orders(seed + attempt, n)
     validate_orders(rows)
     return rows
 
@@ -57,7 +62,34 @@ def validate_orders(rows: list[dict]) -> None:
     pct = 100 * sum(r["delayed_shipment"] for r in rows) / len(rows)
     assert 10 <= pct <= 30, pct
 
+def escalation_score(row: dict) -> float:
+    """Designed escalation score in [0, 1] combining BOTH signals (so it is not a
+    bare boolean of delayed_shipment): a normalized recency term
+    (days_since_created / 30) plus the delayed_shipment flag, gated by order status
+    so already-resolved orders (Delivered/Returned/Refunded) de-escalate.
+
+        recency = days_since_created / 30
+        status_factor = 1.0 if status in {Placed, Shipped} else 0.5
+        score = status_factor * (0.4 * delayed_shipment + 0.6 * recency)
+    """
+    recency = min(1.0, row["days_since_created"] / 30.0)
+    status_factor = 1.0 if row["status"] in ("Placed", "Shipped") else 0.5
+    return round(min(1.0, max(0.0, status_factor * (0.4 * int(row["delayed_shipment"]) + 0.6 * recency))), 3)
+
+def escalation_threshold(orders: list[dict] | None = None, percentile: float = 80) -> float:
+    """Escalation threshold as a stated percentile of the score distribution."""
+    import math
+    scores = sorted(escalation_score(o) for o in (orders if orders is not None else ORDERS))
+    if not scores:
+        return 0.0
+    k = (len(scores) - 1) * percentile / 100.0
+    f, c = math.floor(k), math.ceil(k)
+    if f == c:
+        return scores[int(k)]
+    return round(scores[f] + (scores[c] - scores[f]) * (k - f), 3)
+
 ORDERS = generate_orders()
+ESCALATION_THRESHOLD = escalation_threshold()  # 80th percentile of the score distribution
 
 def distribution(rows: list[dict] = ORDERS) -> dict:
     ages = sorted(r["days_since_created"] for r in rows)

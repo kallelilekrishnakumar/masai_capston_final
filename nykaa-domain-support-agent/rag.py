@@ -65,9 +65,9 @@ class LocalRetriever:
             self.model=SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
             self.client=chromadb.Client()
             cname=f"nykaa_{strategy}_chunks"
-            try: self.client.delete_collection(cname)
-            except Exception: pass
-            self.collection=self.client.create_collection(name=cname, metadata={"hnsw:space":"cosine"})
+            # get_or_create so multiple retrievers of the same strategy in one
+            # process never delete a collection another instance still references.
+            self.collection=self.client.get_or_create_collection(name=cname, metadata={"hnsw:space":"cosine"})
             embeddings=self.model.encode([c["chunk"] for c in self.chunks], normalize_embeddings=True).tolist()
             self.collection.upsert(
                 ids=[c["chunk_id"] for c in self.chunks],
@@ -133,23 +133,38 @@ def calibrated_threshold(retriever):
             "clusters_separated":max_bad < min_good,"strategy":retriever.strategy,"mode":retriever.mode}
 
 def relevance_for_query(query, doc_id):
-    """Small explicit gold map used for reproducible document-level metrics."""
-    q=query.lower()
-    mapping=[
-      (("return window","beauty return","return policy"),"return-window"),
-      (("cod refund","cash-on-delivery refund"),"cod-refunds"),
-      (("delivery sla","delivery time","after dispatch"),"delivery-sla"),
-      (("reverse pickup","reverse-pickup"),"reverse-pickup"),
-      (("warranty","manufacturer warranty"),"warranty"),
-      (("cancel","cancellation"),"cancellation"),
-      (("loyalty points","redeem points"),"loyalty-points"),
-      (("payment failed","payment retry","debit"),"payment-retry"),
-      (("size exchange","exchange size","exchange apparel size"),"size-exchange"),
-      (("damaged item","damage claim"),"damaged-claim"),
-      (("international shipping","ship internationally"),"international-shipping"),
-      (("escalation matrix","escalate"),"escalation-matrix"),
+    """Document-level gold relevance used for reproducible precision/recall.
+
+    The five metric queries use an explicit gold set (keyed by the exact query) so
+    phrasing like 'Can I exchange an Apparel size?' reliably maps to size-exchange
+    instead of failing a substring heuristic. Ad-hoc queries fall back to term matching.
+    """
+    GOLD_RELEVANCE = {
+        "what is the return window for beauty products?": {"return-window"},
+        "how long can a cod refund take?": {"cod-refunds"},
+        "what is the delivery sla after dispatch?": {"delivery-sla"},
+        "can i exchange an apparel size?": {"size-exchange"},
+        "how do i report a damaged item?": {"damaged-claim"},
+    }
+    key = query.strip().lower()
+    if key in GOLD_RELEVANCE:
+        return doc_id in GOLD_RELEVANCE[key]
+    q = query.lower()
+    mapping = [
+      (("return window", "beauty return", "return policy"), "return-window"),
+      (("cod refund", "cash-on-delivery refund"), "cod-refunds"),
+      (("delivery sla", "delivery time", "after dispatch"), "delivery-sla"),
+      (("reverse pickup", "reverse-pickup"), "reverse-pickup"),
+      (("warranty", "manufacturer warranty"), "warranty"),
+      (("cancel", "cancellation"), "cancellation"),
+      (("loyalty points", "redeem points"), "loyalty-points"),
+      (("payment failed", "payment retry", "debit"), "payment-retry"),
+      (("size exchange", "exchange size", "exchange apparel size"), "size-exchange"),
+      (("damaged item", "damage claim"), "damaged-claim"),
+      (("international shipping", "ship internationally"), "international-shipping"),
+      (("escalation matrix", "escalate"), "escalation-matrix"),
     ]
-    expected={d for terms,d in mapping if any(t in q for t in terms)}
+    expected = {d for terms, d in mapping if any(t in q for t in terms)}
     return doc_id in expected if expected else False
 
 def precision_recall(retriever, queries):

@@ -1,17 +1,21 @@
 """Run acceptance demos in MOCK_LLM mode and persist reproducible artifacts."""
 from __future__ import annotations
-import json, os
+import json, os, sys
 from pathlib import Path
 os.environ.setdefault("MOCK_LLM","1")
+os.environ.setdefault("CREWAI_DISABLE_TELEMETRY","true")
+os.environ.setdefault("OTEL_SDK_DISABLED","true")
 from dataset import ORDERS, distribution
 from rag import LocalRetriever, load_documents, calibrated_threshold, precision_recall
-from agents import SupportOrchestrator, input_guardrail, mask_pii
+from agents import SupportOrchestrator, input_guardrail, mask_pii, run_crewai_kickoff_demo
 from governance import RequestBudget, BudgetExceeded, enforce_tool_access, UnauthorizedToolUse
-from review_stage import review_draft
+from review_stage import review_draft, run_autogen_review_demo
 from evaluation import evaluate
 
 OUT=Path("artifacts"); OUT.mkdir(exist_ok=True)
 def main():
+    try: sys.stdout.reconfigure(encoding="utf-8")  # Windows cp1252 can't encode Rs./en-dashes
+    except Exception: pass
     lines=[]
     (OUT/"orders.json").write_text(json.dumps(ORDERS,indent=2,ensure_ascii=False),encoding="utf-8")
     dist=distribution()
@@ -43,11 +47,18 @@ def main():
         oos=r.answer("Who won the 2030 World Cup?",threshold=threshold)
         lines += [f"Out-of-scope fallback: grounded={oos['grounded']}; answer={oos['answer']}"]
     (OUT/"rag_metrics.json").write_text(json.dumps(metrics,indent=2,ensure_ascii=False),encoding="utf-8")
-    agent=SupportOrchestrator(retrievers["fixed"])
+    agent=SupportOrchestrator(retrievers["sentence"])  # recommended strategy for the agent path
     lines += ["=== CREW / TOOLS ==="]
     lines += [agent.ask("What is the return window for Beauty products?").model_dump_json(),
               agent.ask(f"Please check order NYK-0001").model_dump_json(),
               f"Tool invocation counters: {agent.tool_calls}"]
+    # Real CrewAI crew via .kickoff() (mock LLM, zero API keys).
+    try:
+        crew_lines, _ = run_crewai_kickoff_demo(orchestrator=agent)
+        lines += ["=== CREWAI CREW (.kickoff()) ==="] + crew_lines
+        (OUT/"crew_transcript.txt").write_text("\n".join(crew_lines), encoding="utf-8")
+    except Exception as e:
+        lines += [f"=== CREWAI CREW (.kickoff()) unavailable: {e!r}"]
     lines += ["=== SESSION MEMORY ==="]
     agent.ask("What is the return window?",session_id="memory-demo")
     lines += [f"memory-demo turns={len(agent.memory.get('memory-demo'))}",
@@ -60,6 +71,13 @@ def main():
     lines += ["=== REVIEW STAGE ===",
               review_draft("Eligible COD refunds target 5–7 business days after inspection.","COD refund policy").model_dump_json(),
               review_draft("Eligible COD refunds target 5–7 business days after inspection.","COD refund policy",inject_test_claim=True).model_dump_json()]
+    # Real AutoGen RoundRobinGroupChat review stage (mock model client, zero API keys).
+    try:
+        ag_lines = run_autogen_review_demo()
+        lines += ag_lines
+        (OUT/"autogen_transcript.txt").write_text("\n".join(ag_lines), encoding="utf-8")
+    except Exception as e:
+        lines += [f"AutoGen review demo unavailable: {e!r}"]
     try: enforce_tool_access("Response Composer","check_order_status")
     except UnauthorizedToolUse as e: lines += [f"Least autonomy restriction fired: {e}"]
     try: RequestBudget(100).check("x"*101)

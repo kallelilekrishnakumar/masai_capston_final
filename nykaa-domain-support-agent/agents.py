@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from dataset import ORDERS
 from rag import LocalRetriever
 from governance import enforce_tool_access, ResponseCache
+from review_stage import review_answer
 
 PHONE_RE=re.compile(r"(?<!\d)(?:\+?91[\s-]?)?[6-9]\d{9}(?!\d)")
 CARD_RE=re.compile(r"(?i)(card(?:\s*(?:last[- ]?4|ending))?\s*[:#]?\s*)(\d{4})")
@@ -51,7 +52,7 @@ class SessionMemory:
 
 class SupportOrchestrator:
     def __init__(self, retriever=None):
-        self.retriever=retriever or LocalRetriever("fixed")
+        self.retriever=retriever or LocalRetriever("sentence")  # recommended chunking strategy (see README)
         self.cache=ResponseCache()
         self.memory=SessionMemory()
         self.tool_calls={"rag":0,"lookup":0}
@@ -84,9 +85,15 @@ class SupportOrchestrator:
                         trace_notes=["Lookup Agent invoked check_order_status"])
             else:
                 rag=self.rag_tool(safe_query)
-                result=SupportResponse(answer=rag["answer"],intent="policy" if rag["grounded"] else "unsupported",
-                    grounded=rag["grounded"],sources=rag["sources"],
-                    trace_notes=["Retrieval Agent invoked RAG tool", "cache hit" if rag.get("cache_hit") else "cache miss"])
+                answer=rag["answer"]; grounded=rag["grounded"]
+                notes=["Retrieval Agent invoked RAG tool", "cache hit" if rag.get("cache_hit") else "cache miss"]
+                if grounded:
+                    ctx="\n".join(d["text"] for d in self.retriever.documents if d["doc_id"] in rag["sources"])
+                    verdict=review_answer(answer, ctx)
+                    answer=verdict.final_answer
+                    notes.append(f"review stage: approved={verdict.approved} | {verdict.reason}")
+                result=SupportResponse(answer=answer,intent="policy" if grounded else "unsupported",
+                    grounded=grounded,sources=rag["sources"],trace_notes=notes)
         self.memory.add(session_id,"user",safe_query)
         self.memory.add(session_id,"assistant",result.answer)
         return result

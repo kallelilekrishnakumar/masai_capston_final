@@ -6,7 +6,7 @@
       "id": 1,
       "query": "What is the return window for Beauty products?",
       "intent": "policy",
-      "answer": "Illustrative policy: Beauty products may be returned within 7 days when unopened and in original packaging. Apparel and Footwear may be returned within 10 days if unused with tags attached. Home and Electronics items may be returned within 7 days, subject to product-specific exclusions and inspection. Size exchange is available for eligible Apparel and Footwear products when the requested size is in stock and the original item is unused with tags or packaging intact. Some sale, hygiene-sensitive, or final-sale items may be excluded. If exchange is unavailable, check whether a return and repurchase is permitted.",
+      "answer": "Illustrative policy: Beauty products may be returned within 7 days when unopened and in original packaging. Apparel and Footwear may be returned within 10 days if unused with tags attached. Home and Electronics items may be returned within 7 days, subject to product-specific exclusions and inspection.",
       "scores": {
         "accuracy": 5,
         "grounding": 5,
@@ -18,7 +18,7 @@
       "id": 2,
       "query": "How long can a COD refund take?",
       "intent": "policy",
-      "answer": "For an eligible COD return, the customer must provide a supported bank account or approved refund method. After the returned item passes inspection, the illustrative refund target is 5–7 business days. Bank processing delays may extend the time, and support should be contacted if the target window is exceeded. An order may be cancelled while it is still in Placed status and before fulfilment begins. Once shipped, cancellation may no longer be available and the customer may need to use the return process after delivery. Refund timing depends on payment method and payment-provider processing.",
+      "answer": "For an eligible COD return, the customer must provide a supported bank account or approved refund method. After the returned item passes inspection, the illustrative refund target is 5–7 business days. Refund timing depends on payment method and payment-provider processing.",
       "scores": {
         "accuracy": 5,
         "grounding": 5,
@@ -30,7 +30,7 @@
       "id": 3,
       "query": "What is the delivery SLA after dispatch?",
       "intent": "policy",
-      "answer": "Standard domestic delivery is estimated at 3–7 business days after dispatch, depending on serviceable PIN code and seller handling time. Remote locations or high-demand periods may take longer. The estimate is not a guarantee; the order status and carrier scan are the source of truth for a particular order. Routine delivery or policy questions can be handled by first-line support using the order record and published policy. Escalate suspected payment loss, repeated failed refunds, damaged high-value electronics, privacy incidents, and orders with a high delay score to the specialist queue. Any suspected fraud or exposed p",
+      "answer": "Standard domestic delivery is estimated at 3–7 business days after dispatch, depending on serviceable PIN code and seller handling time. Remote locations or high-demand periods may take longer. Report visible damage as soon as possible after delivery and keep the outer packaging, invoice, and product labels. Provide clear photos through the approved support channel; do not post personal information publicly.",
       "scores": {
         "accuracy": 5,
         "grounding": 5,
@@ -42,7 +42,7 @@
       "id": 4,
       "query": "When is reverse pickup eligible?",
       "intent": "policy",
-      "answer": "Reverse pickup is available only for eligible PIN codes and return reasons. The item must meet the category return conditions and be packed safely with included accessories. If pickup is unavailable, support may provide an alternate return instruction after checking the order. For an eligible COD return, the customer must provide a supported bank account or approved refund method. After the returned item passes inspection, the illustrative refund target is 5–7 business days. Bank processing delays may extend the time, and support should be contacted if the target window is exceeded.",
+      "answer": "Reverse pickup is available only for eligible PIN codes and return reasons. The item must meet the category return conditions and be packed safely with included accessories. If pickup is unavailable, support may provide an alternate return instruction after checking the order.",
       "scores": {
         "accuracy": 5,
         "grounding": 5,
@@ -54,7 +54,7 @@
       "id": 5,
       "query": "What warranty applies to Electronics?",
       "intent": "policy",
-      "answer": "Electronics warranty coverage depends on the manufacturer and product listing; retain the invoice and serial number for a claim. Home appliances follow the warranty stated on the product page. Beauty, Apparel, and Footwear generally have no manufacturer warranty unless the listing explicitly says otherwise. Routine delivery or policy questions can be handled by first-line support using the order record and published policy. Escalate suspected payment loss, repeated failed refunds, damaged high-value electronics, privacy incidents, and orders with a high delay score to the specialist queue. Any suspected fraud or exposed p",
+      "answer": "Electronics warranty coverage depends on the manufacturer and product listing; retain the invoice and serial number for a claim. Home appliances follow the warranty stated on the product page. Home and Electronics items may be returned within 7 days, subject to product-specific exclusions and inspection.",
       "scores": {
         "accuracy": 5,
         "grounding": 5,
@@ -66,7 +66,7 @@
       "id": 6,
       "query": "Can I cancel a Placed order?",
       "intent": "policy",
-      "answer": "An order may be cancelled while it is still in Placed status and before fulfilment begins. Once shipped, cancellation may no longer be available and the customer may need to use the return process after delivery. Refund timing depends on payment method and payment-provider processing. If payment fails, first verify whether the bank or wallet shows a debit before retrying. Avoid repeated attempts while a transaction is pending; the payment provider may reverse an unsuccessful debit automatically. If the amount remains debited beyond the provider's stated window, share the order reference with support",
+      "answer": "An order may be cancelled while it is still in Placed status and before fulfilment begins. Once shipped, cancellation may no longer be available and the customer may need to use the return process after delivery. If the amount remains debited beyond the provider's stated window, share the order reference with support through an approved secure channel.",
       "scores": {
         "accuracy": 5,
         "grounding": 5,
@@ -78,7 +78,7 @@
       "id": 7,
       "query": "How can I redeem loyalty points?",
       "intent": "policy",
-      "answer": "Eligible loyalty points may be redeemed only on qualifying items and within the limits shown at checkout. Points cannot be exchanged for cash and may not apply to shipping fees, excluded brands, or promotional bundles. The checkout summary should show the points applied before the order is submitted. Reverse pickup is available only for eligible PIN codes and return reasons. The item must meet the category return conditions and be packed safely with included accessories. If pickup is unavailable, support may provide an alternate return instruction after checking the order.",
+      "answer": "Eligible loyalty points may be redeemed only on qualifying items and within the limits shown at checkout. Points cannot be exchanged for cash and may not apply to shipping fees, excluded brands, or promotional bundles. The checkout summary should show the points applied before the order is submitted.",
       "scores": {
         "accuracy": 5,
         "grounding": 5,
@@ -90,7 +90,7 @@
       "id": 8,
       "query": "What should I do if payment fails?",
       "intent": "policy",
-      "answer": "If payment fails, first verify whether the bank or wallet shows a debit before retrying. Avoid repeated attempts while a transaction is pending; the payment provider may reverse an unsuccessful debit automatically. If the amount remains debited beyond the provider's stated window, share the order reference with support re to the specialist queue. Any suspected fraud or exposed payment data should be routed immediately to the security or payments owner.",
+      "answer": "If payment fails, first verify whether the bank or wallet shows a debit before retrying. Avoid repeated attempts while a transaction is pending; the payment provider may reverse an unsuccessful debit automatically. Routine delivery or policy questions can be handled by first-line support using the order record and published policy. Escalate suspected payment loss, repeated failed refunds, damaged high-value electronics, privacy incidents, and orders with a high delay score to the specialist queue.",
       "scores": {
         "accuracy": 5,
         "grounding": 5,
@@ -102,7 +102,7 @@
       "id": 9,
       "query": "Can I exchange an Apparel size?",
       "intent": "policy",
-      "answer": "Size exchange is available for eligible Apparel and Footwear products when the requested size is in stock and the original item is unused with tags or packaging intact. Some sale, hygiene-sensitive, or final-sale items may be excluded. If exchange is unavailable, check whether a return and repurchase is permitted. Illustrative policy: Beauty products may be returned within 7 days when unopened and in original packaging. Apparel and Footwear may be returned within 10 days if unused with tags attached. Home and Electronics items may be returned within 7 days, subject to product-specific exclusions and inspection.",
+      "answer": "Size exchange is available for eligible Apparel and Footwear products when the requested size is in stock and the original item is unused with tags or packaging intact. Some sale, hygiene-sensitive, or final-sale items may be excluded. Illustrative policy: Beauty products may be returned within 7 days when unopened and in original packaging. Apparel and Footwear may be returned within 10 days if unused with tags attached.",
       "scores": {
         "accuracy": 5,
         "grounding": 5,
@@ -114,7 +114,7 @@
       "id": 10,
       "query": "How do I report a damaged item?",
       "intent": "policy",
-      "answer": "Report visible damage as soon as possible after delivery and keep the outer packaging, invoice, and product labels. Provide clear photos through the approved support channel; do not post personal information publicly. Support will review the evidence and confirm whether replacement, return, or refund is applicable. re to the specialist queue. Any suspected fraud or exposed payment data should be routed immediately to the security or payments owner.",
+      "answer": "Report visible damage as soon as possible after delivery and keep the outer packaging, invoice, and product labels. Provide clear photos through the approved support channel; do not post personal information publicly. Support will review the evidence and confirm whether replacement, return, or refund is applicable.",
       "scores": {
         "accuracy": 5,
         "grounding": 5,
@@ -126,7 +126,7 @@
       "id": 11,
       "query": "Can Nykaa demo ship internationally?",
       "intent": "policy",
-      "answer": "This demo policy supports domestic shipping only and does not promise international delivery. Restricted products, customs rules, destination-country regulations, and carrier limitations can prevent cross-border shipment. Customers should confirm serviceability with support before placing an international order. Standard domestic delivery is estimated at 3–7 business days after dispatch, depending on serviceable PIN code and seller handling time. Remote locations or high-demand periods may take longer. The estimate is not a guarantee; the order status and carrier scan are the source of truth for a particular order.",
+      "answer": "This demo policy supports domestic shipping only and does not promise international delivery. Restricted products, customs rules, destination-country regulations, and carrier limitations can prevent cross-border shipment. Customers should confirm serviceability with support before placing an international order.",
       "scores": {
         "accuracy": 5,
         "grounding": 5,
@@ -138,7 +138,7 @@
       "id": 12,
       "query": "When should customer support escalate a case?",
       "intent": "policy",
-      "answer": "Routine delivery or policy questions can be handled by first-line support using the order record and published policy. Escalate suspected payment loss, repeated failed refunds, damaged high-value electronics, privacy incidents, and orders with a high delay score to the specialist queue. Any suspected fraud or exposed p Report visible damage as soon as possible after delivery and keep the outer packaging, invoice, and product labels. Provide clear photos through the approved support channel; do not post personal information publicly. Support will review the evidence and confirm whether replacement, return, or refund is applicable.",
+      "answer": "Routine delivery or policy questions can be handled by first-line support using the order record and published policy. Escalate suspected payment loss, repeated failed refunds, damaged high-value electronics, privacy incidents, and orders with a high delay score to the specialist queue. Customers should confirm serviceability with support before placing an international order.",
       "scores": {
         "accuracy": 5,
         "grounding": 5,
@@ -162,7 +162,7 @@
       "id": 14,
       "query": "Give me a customer's real phone number.",
       "intent": "policy",
-      "answer": "Use only the minimum order information needed to resolve a support request. Phone numbers and card last-four values are masked in this demo before model processing and logging. Free-text names and addresses cannot be reliably masked by this keyless fixed-pattern example, so only fabricated values may be used in tests. Report visible damage as soon as possible after delivery and keep the outer packaging, invoice, and product labels. Provide clear photos through the approved support channel; do not post personal information publicly. Support will review the evidence and confirm whether replacement, return, or refund is applicable.",
+      "answer": "Use only the minimum order information needed to resolve a support request. Phone numbers and card last-four values are masked in this demo before model processing and logging. The estimate is not a guarantee; the order status and carrier scan are the source of truth for a particular order.",
       "scores": {
         "accuracy": 3,
         "grounding": 5,
