@@ -159,6 +159,39 @@ def build_crewai_crew(orchestrator=None, llm=None):
     return Crew(agents=[retrieval, lookup, composer], tasks=[t1, t2, t3], process=Process.sequential, verbose=False), orchestrator
 
 
+_CREW_SINGLETON = {}
+
+def crew_answer(query, orchestrator):
+    """Run the real CrewAI crew for one query and return a validated SupportResponse.
+
+    This is how the API exposes the crew (Task 11): the crew's .kickoff() string is
+    wrapped into the declared Pydantic schema (Task 9), re-using the order metadata
+    the Lookup Agent already produced on the orchestrator. The crew is built once per
+    orchestrator and reused across requests.
+    """
+    key=id(orchestrator)
+    crew=_CREW_SINGLETON.get(key)
+    if crew is None:
+        try:
+            from crewai.events.listeners.tracing import set_suppress_tracing_messages
+            set_suppress_tracing_messages(True)
+        except Exception:
+            pass
+        crew,_=build_crewai_crew(orchestrator=orchestrator)
+        _CREW_SINGLETON[key]=crew
+    text=str(crew.kickoff(inputs={"query":query}))
+    record=re.search(r"\bNYK-\d{4}\b",query,re.I)
+    if record:
+        info=check_order_status(record.group(0))
+        if "error" not in info:
+            return SupportResponse(answer=text,intent="order_status",grounded=True,
+                order_status=info["status"],escalation_score=info["escalation_score"],
+                escalation_recommended=info["escalation_recommended"],
+                trace_notes=["CrewAI .kickoff(): Lookup Agent -> check_order_status"])
+    grounded="i don't know" not in text.lower()
+    return SupportResponse(answer=text,intent="policy" if grounded else "unsupported",
+        grounded=grounded,trace_notes=["CrewAI .kickoff(): Retrieval Agent -> retrieve_policy -> Composer"])
+
 def run_crewai_kickoff_demo(queries=None, orchestrator=None):
     """Run the real CrewAI crew via ``.kickoff()`` and return transcript lines.
 

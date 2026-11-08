@@ -7,7 +7,7 @@ from threading import Lock
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, ValidationError
-from agents import SupportOrchestrator, input_guardrail, mask_pii
+from agents import SupportOrchestrator, crew_answer, input_guardrail, mask_pii
 from rag import LocalRetriever
 from governance import BudgetExceeded, RequestBudget, ResponseCache
 
@@ -24,6 +24,7 @@ LOG_PATH.parent.mkdir(parents=True,exist_ok=True)
 class AskRequest(BaseModel):
     query: str = Field(min_length=1)
     session_id: str = "default"
+    use_crew: bool = False  # True -> answer via the real CrewAI .kickoff() crew; default is the fast router
 class AskResponse(BaseModel):
     trace_id: str
     answer: str
@@ -71,7 +72,10 @@ def ask(body: AskRequest):
         guard=input_guardrail(body.query)
         if not guard["allowed"]:
             raise HTTPException(status_code=400,detail="Prompt-injection guard blocked the request.")
-        result=orchestrator.ask(guard["masked_text"],body.session_id)
+        if body.use_crew:
+            result=crew_answer(guard["masked_text"],orchestrator)
+        else:
+            result=orchestrator.ask(guard["masked_text"],body.session_id)
         log_request(trace,body.query,started,"ok")
         return {"trace_id":trace,**result.model_dump()}
     except BudgetExceeded as exc:
@@ -119,7 +123,10 @@ async def websocket_chat(websocket: WebSocket):
                     log_request(trace,text,started,"blocked","/ws/chat")
                     await websocket.send_json(WSError(trace_id=trace,error="Prompt-injection guard blocked the request.").model_dump())
                     continue
-                result=await run_in_threadpool(orchestrator.ask,guard["masked_text"],req.session_id)
+                if req.use_crew:
+                    result=await run_in_threadpool(crew_answer,guard["masked_text"],orchestrator)
+                else:
+                    result=await run_in_threadpool(orchestrator.ask,guard["masked_text"],req.session_id)
                 log_request(trace,text,started,"ok","/ws/chat")
                 await websocket.send_json(WSReply(trace_id=trace,**result.model_dump()).model_dump())
             except WebSocketDisconnect:
