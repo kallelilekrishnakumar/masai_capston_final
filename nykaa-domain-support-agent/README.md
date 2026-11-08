@@ -18,7 +18,28 @@ python run_demo.py
 uvicorn app:app --reload
 ```
 
-All deterministic acceptance demos run under `MOCK_LLM=1`; no hosted LLM API key is required. SentenceTransformers downloads `sentence-transformers/all-MiniLM-L6-v2` on first use. If that package/model is unavailable, the RAG core deliberately falls back to a local word-overlap retriever so the demo remains runnable; that fallback is not equivalent to semantic embeddings.
+All deterministic acceptance demos run under `MOCK_LLM=1`; **no hosted LLM API key is required** (CrewAI uses a local `MockCrewLLM`, the AutoGen review uses a local `MockReviewModelClient`). SentenceTransformers downloads `sentence-transformers/all-MiniLM-L6-v2` on first use. If that package/model is unavailable, the RAG core deliberately falls back to a local word-overlap retriever so the demo remains runnable; that fallback is not equivalent to semantic embeddings.
+
+## How to run
+
+Run everything from the `nykaa-domain-support-agent/` folder (the repo root).
+
+```bash
+pytest -q                 # unit + API/WebSocket tests
+python run_demo.py        # end-to-end acceptance demo; writes the artifacts below
+python run_api_demo.py    # exercises the FastAPI app in-process; writes api_transcript.txt
+uvicorn app:app --reload  # serve the API at http://127.0.0.1:8000 (docs at /docs)
+```
+
+`run_demo.py` writes to `artifacts/`: `demo_transcript.txt`, `rag_metrics.json`, `evaluation.json`, `orders.json`, `crew_transcript.txt` (CrewAI `.kickoff()`), `autogen_transcript.txt` (AutoGen review), `memory_transcript.txt` (LangChain memory). `run_api_demo.py` writes `api_transcript.txt` (HTTP + WebSocket, including a client disconnect and reconnect).
+
+**Choosing the orchestration path.** `POST /ask` and the WebSocket accept `"use_crew": true` to answer via the real CrewAI `.kickoff()` crew; omitted/`false` uses the fast deterministic router (the default). Both return the same `SupportResponse` schema. Example:
+
+```bash
+curl -X POST http://127.0.0.1:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"query":"What is the return window for Beauty products?","use_crew":true}'
+```
 
 ## Layout
 
@@ -32,8 +53,9 @@ All deterministic acceptance demos run under `MOCK_LLM=1`; no hosted LLM API key
 - `governance.py`: least-autonomy allow-list, request budget, normalized-query cache.
 - `app.py`: FastAPI `/ask`, `/add-document`, `/health`, and `/ws/chat`; JSONL logging with masked text and trace IDs.
 - `evaluation.py`: 15-query test set, per-query Accuracy/Grounding/Completeness/Safety scores and averages.
-- `run_demo.py`: acceptance demonstrations and writes `artifacts/demo_transcript.txt`, `artifacts/evaluation.json`, `artifacts/rag_metrics.json`.
-- `tests/`: core tests.
+- `run_demo.py`: end-to-end acceptance demo; writes the `artifacts/` transcripts and metrics.
+- `run_api_demo.py`: drives the FastAPI app in-process; writes `artifacts/api_transcript.txt`.
+- `tests/`: `test_core.py` (unit) and `test_api_and_guards.py` (guards, escalation, memory, evaluation, API, WebSocket).
 
 ## RAG threshold calibration
 
