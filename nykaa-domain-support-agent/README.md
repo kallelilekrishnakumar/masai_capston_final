@@ -23,7 +23,9 @@ All deterministic acceptance demos run under `MOCK_LLM=1`; no hosted LLM API key
 ## Layout
 
 - `dataset.py`: seeded generator for 50 orders, validation, category/status distribution.
-- `knowledge_base/`: 12 policy documents, 2–5 sentences each.
+- `knowledge_base/`: 13 policy documents (the 12 required topics plus privacy/PII).
+- `mock_llm.py`: deterministic CrewAI model used so `.kickoff()` runs with no API keys.
+- `conftest.py`: puts the project root on `sys.path` for pytest.
 - `rag.py`: fixed-overlap and sentence chunking; separate Chroma collections when dependencies are available; similarity measurement, grounded fallback, precision/recall.
 - `agents.py`: Pydantic response schema, tool functions, session memory, guardrails, mock orchestration, optional CrewAI crew factory.
 - `review_stage.py`: deterministic two-reviewer mock stage and optional AutoGen RoundRobinGroupChat adapter.
@@ -47,8 +49,13 @@ The clusters are well separated (lowest in-scope 0.526 > highest out-of-scope 0.
 
 The generator uses seed `20261011`, 50 records, and INR order values from ₹299 to ₹24,999 to represent a broad illustrative mix of beauty, apparel, electronics, home, and footwear orders. It guarantees category coverage by weighted deterministic generation, while delayed shipments are sampled at 20%; it validates that the resulting rate lies in the required 10–30% band rather than editing individual records after generation.
 
-Escalation score:
-`0.65 * delayed_shipment + 0.35 * (days_since_created / 30)`, clamped to `[0, 1]`. Recommended escalation threshold: `0.65`. This makes a delayed shipment with meaningful age high priority while allowing a very old non-delayed order to surface for review. `dataset.py` prints the actual age distribution and the 80th percentile; treat that distribution as the empirical justification and adjust the operational threshold only after reviewing generated data.
+Escalation score (`dataset.escalation_score`, used by `check_order_status`):
+
+`score = status_factor * (0.4 * delayed_shipment + 0.6 * days_since_created / 30)`, where `status_factor = 1.0` for `Placed`/`Shipped` and `0.5` for `Delivered`/`Returned`/`Refunded` (already-resolved orders de-escalate). The result is in `[0, 1]`.
+
+Both signals matter on their own: a very old, non-delayed open order can outrank a recent delayed one, so this is not a bare boolean of `delayed_shipment`. **Recommended escalation threshold = the 80th percentile of the scores over the generated 50 orders** (`dataset.ESCALATION_THRESHOLD`; the exact value is printed by `python dataset.py` as `escalation_threshold_p80`). By construction this flags about the top 20% of orders for review. Run `python dataset.py` to see the counts and the threshold.
+
+Generated data (seed `20261011`): categories Apparel 8, Electronics 9, Home 11, Footwear 8, Beauty 14; statuses Placed 5, Shipped 12, Delivered 15, Returned 7, Refunded 11; 14.0% delayed shipments. Order values are drawn uniformly from ₹299 to ₹24,999 as a broad illustrative range spanning low-cost beauty items to high-cost electronics.
 
 ## Chunking comparison (reproducible local baseline)
 
@@ -66,11 +73,20 @@ Means: fixed precision **0.366**, recall **1.000**; sentence precision **0.400**
 
 ## Evaluation methodology
 
-`evaluation.py` provides deterministic, rubric-based MOCK_LLM scores so all 15 rows can be reproduced without external model calls. These are **synthetic rubric scores, not independent human or LLM judgments**. They are useful as a harness/demo and should be replaced with blinded human review or a real judge model for a production claim. Out-of-scope queries are expected to trigger safe fallback.
+`evaluation.py` defines an LLM-as-judge prompt (`JUDGE_PROMPT`: question, retrieved context, answer, expected behaviour, four-property rubric, JSON output) and renders it for each of the 15 test queries (all 12 required KB topics, one out-of-scope, one PII edge case, one injection attempt). Under `MOCK_LLM` the judge is `MockJudge`, a deterministic stand-in that scores from the same fields: accuracy (expected source cited, or correct refusal), grounding (answer-token overlap with the context), completeness (query-term coverage, or a clear refusal), safety (no PII, no unsupported guarantee, no instruction-following). `artifacts/evaluation.json` stores the prompt template, every rendered prompt, the four scores per query and the four averages. These are **not independent model judgments**; plug a real model client into the same prompt for that.
+
+## Session memory
+
+`agents.MemoryChat` uses LangChain's `InMemoryChatMessageHistory` + `RunnableWithMessageHistory` (it emits the expected `LangChainDeprecationWarning`; the class still works). Memory is in-process only, stored masked, and changes behaviour: "What about Apparel?" and "Is it delayed?" are resolved from earlier turns of the same session. `artifacts/memory_transcript.txt` has a multi-turn transcript with state carried and a separate fresh-session transcript where the same follow-ups ask for clarification.
 
 ## CrewAI and AutoGen
 
-The core deterministic mock orchestration is the default so it runs without API keys. `agents.py` contains `build_crewai_crew()` using CrewAI agents/tasks/tools and `.kickoff()`. `review_stage.py` contains an AutoGen AgentChat RoundRobinGroupChat adapter with `max_turns=2` and structured verdict output; this adapter is optional because AutoGen packages evolve quickly and its model-client configuration differs by version. The default mock review stage demonstrates both unchanged approval and revision without external model calls.
+Everything runs with **zero API keys**:
+
+- **CrewAI:** `agents.build_crewai_crew()` builds a real 3-agent crew (Retrieval, Lookup, Response Composer). `run_demo.py` runs it with `.kickoff()` on a policy query and an order query. The "brain" is `mock_llm.MockCrewLLM`, a deterministic ReAct-style model, so CrewAI's own agent loop calls the real tools. Its behaviour is scripted (keyword and order-ID routing); it is not a real model. Evidence: `artifacts/crew_transcript.txt`. Only the Lookup Agent is wired to `check_order_status`.
+- **AutoGen:** `review_stage.run_autogen_review()` runs a real `RoundRobinGroupChat` (Policy-Compliance-Reviewer + Final-Editor, `max_turns=2`, `Verdict` structured output, `custom_message_types=[StructuredMessage[Verdict]]`) driven by `MockReviewModelClient`, which is deterministic (phrase matching), not a real model. Evidence: `artifacts/autogen_transcript.txt` (one approve-unchanged case, one revise case).
+- **Request path:** the API and `SupportOrchestrator` use the fast deterministic `review_draft` reviewer for every grounded policy answer; the full AutoGen team is demonstrated by `run_demo.py`.
+- A real model client (for example Ollama) can be passed in place of either mock; that is the only optional, key-dependent setup.
 
 ## API examples
 
