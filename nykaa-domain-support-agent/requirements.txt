@@ -4,7 +4,7 @@ pydantic>=2.8,<3.0
 numpy>=1.26
 chromadb>=0.5,<2.0
 sentence-transformers>=3.0,<6.0
-crewai>=0.80
+crewai==1.15.35
 autogen-agentchat>=0.5,<0.6
 autogen-core>=0.5,<0.6
 pytest>=8.0

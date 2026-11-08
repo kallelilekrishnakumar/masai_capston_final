@@ -2,7 +2,7 @@
 Query: What is the return window for Beauty products?
 Kickoff result: Illustrative policy: Beauty products may be returned within 7 days when unopened and in original packaging. Apparel and Footwear may be returned within 10 days if unused with tags attached. Home and Electronics items may be returned within 7 days, subject to product-specific exclusions and inspection.
 Query: Please check order NYK-0001
-Kickoff result: Order NYK-0001 is Placed. Order value: Rs.16415. Escalation score: 0.128. No escalation threshold reached.
+Kickoff result: Order NYK-0001 is Placed. Order value: Rs.16415. Escalation score: 0.220. No escalation threshold reached.
 Tool invocations via .kickoff(): {'rag': 2, 'lookup': 2} (was {'rag': 1, 'lookup': 1})
   retrieve_policy calls: 1
   check_order_status calls: 1

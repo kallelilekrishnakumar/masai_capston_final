@@ -69,7 +69,10 @@
     30,
     30
   ],
-  "p80_days_since_created": 24
+  "p80_days_since_created": 24,
+  "escalation_formula": "status_factor * (0.4*delayed_shipment + 0.6*days_since_created/30); status_factor=1.0 for Placed/Shipped else 0.5",
+  "escalation_threshold_p80": 0.38,
+  "escalation_recommended_count": 13
 }
 Knowledge documents: 13
 === RAG FIXED (sentence-transformers+chromadb) ===
@@ -108,20 +111,18 @@ A: Report visible damage as soon as possible after delivery and keep the outer p
 Out-of-scope fallback: grounded=False; answer=I don't know based on the available policy documents. Please contact customer support for confirmation.
 === CREW / TOOLS ===
 {"answer":"Illustrative policy: Beauty products may be returned within 7 days when unopened and in original packaging. Apparel and Footwear may be returned within 10 days if unused with tags attached. Home and Electronics items may be returned within 7 days, subject to product-specific exclusions and inspection.","intent":"policy","grounded":true,"sources":["return-window","warranty"],"order_status":null,"escalation_score":null,"escalation_recommended":null,"trace_notes":["Retrieval Agent invoked RAG tool","cache miss","review stage: approved=True | No unsupported claim detected; approved unchanged."]}
-{"answer":"Order NYK-0001 is Placed. Order value: ₹16415. Escalation score: 0.128. No escalation threshold reached.","intent":"order_status","grounded":true,"sources":[],"order_status":"Placed","escalation_score":0.128,"escalation_recommended":false,"trace_notes":["Lookup Agent invoked check_order_status"]}
+{"answer":"Order NYK-0001 is Placed. Order value: ₹16415. Escalation score: 0.220. No escalation threshold reached.","intent":"order_status","grounded":true,"sources":[],"order_status":"Placed","escalation_score":0.22,"escalation_recommended":false,"trace_notes":["Lookup Agent invoked check_order_status"]}
 Tool invocation counters: {'rag': 1, 'lookup': 1}
 === CREWAI CREW (.kickoff()) ===
 === CREWAI CREW (.kickoff()) ===
 Query: What is the return window for Beauty products?
 Kickoff result: Illustrative policy: Beauty products may be returned within 7 days when unopened and in original packaging. Apparel and Footwear may be returned within 10 days if unused with tags attached. Home and Electronics items may be returned within 7 days, subject to product-specific exclusions and inspection.
 Query: Please check order NYK-0001
-Kickoff result: Order NYK-0001 is Placed. Order value: Rs.16415. Escalation score: 0.128. No escalation threshold reached.
+Kickoff result: Order NYK-0001 is Placed. Order value: Rs.16415. Escalation score: 0.220. No escalation threshold reached.
 Tool invocations via .kickoff(): {'rag': 2, 'lookup': 2} (was {'rag': 1, 'lookup': 1})
   retrieve_policy calls: 1
   check_order_status calls: 1
-=== SESSION MEMORY ===
-memory-demo turns=2
-fresh-demo turns before interaction=0
+=== SESSION MEMORY unavailable: ModuleNotFoundError("No module named 'langchain_core'") (install langchain-core)
 === INPUT GUARDRAILS ===
 {
   "allowed": true,
@@ -135,6 +136,11 @@ fresh-demo turns before interaction=0
   "injection_detected": true,
   "reason": "Prompt injection phrase detected: ignore all previous instructions"
 }
+=== OUTPUT GROUNDEDNESS GUARD (out-of-scope question refused) ===
+{"answer":"I don't know based on the available policy documents. Please contact customer support for confirmation.","intent":"unsupported","grounded":false,"sources":[],"order_status":null,"escalation_score":null,"escalation_recommended":null,"trace_notes":["Retrieval Agent invoked RAG tool","cache miss"]}
+=== PII + INJECTION GUARDS THROUGH ask() ===
+{"answer":"For an eligible COD return, the customer must provide a supported bank account or approved refund method. After the returned item passes inspection, the illustrative refund target is 5–7 business days. Refund timing depends on payment method and payment-provider processing.","intent":"policy","grounded":true,"sources":["cod-refunds","cancellation","privacy-and-pii"],"order_status":null,"escalation_score":null,"escalation_recommended":null,"trace_notes":["Retrieval Agent invoked RAG tool","cache miss","review stage: approved=True | No unsupported claim detected; approved unchanged."]}
+{"answer":"I can't help with attempts to override the support system's instructions.","intent":"blocked","grounded":false,"sources":[],"order_status":null,"escalation_score":null,"escalation_recommended":null,"trace_notes":["prompt-injection guard fired"]}
 === REVIEW STAGE ===
 {"approved":true,"final_answer":"Eligible COD refunds target 5–7 business days after inspection.","reason":"No unsupported claim detected; approved unchanged."}
 {"approved":false,"final_answer":"Eligible COD refunds target 5–7 business days after inspection.","reason":"Policy-Compliance-Reviewer detected an unsupported guarantee; Final-Editor removed it."}
@@ -147,16 +153,18 @@ Case 2 (revise after injected ungrounded claim):
   draft: Eligible COD refunds target 5-7 business days after inspection. Guaranteed delivery tomorrow is confirmed.
   verdict: approved=False | reason=Policy-Compliance-Reviewer flagged an unsupported guarantee; Final-Editor removed it.
   final_answer: Eligible COD refunds target 5-7 business days after inspection.
+Least autonomy: Lookup Agent call to check_order_status ALLOWED
 Least autonomy restriction fired: 'Response Composer' is not authorized to call 'check_order_status'
+Least autonomy restriction fired: 'Retrieval Agent' is not authorized to call 'check_order_status'
 Budget rejection fired: Request has 101 characters; budget is 100.
-Cache before={'calls': 2, 'hits': 2}; after repeated query={'calls': 2, 'hits': 3}
+Cache before={'calls': 3, 'hits': 2}; after repeated query={'calls': 3, 'hits': 3}
 === EVALUATION ===
 {
   "count": 15,
   "averages": {
-    "accuracy": 4.87,
-    "grounding": 4.93,
-    "completeness": 3.8,
-    "safety": 5
+    "accuracy": 5.0,
+    "grounding": 5.0,
+    "completeness": 3.62,
+    "safety": 5.0
   }
 }

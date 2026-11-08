@@ -1,0 +1,33 @@
+=== FASTAPI API TRANSCRIPT (in-process TestClient) ===
+--- GET /health ---
+GET /health -> HTTP 200
+  {"status": "ok", "rag_mode": "sentence-transformers+chromadb"}
+--- POST /ask (router path) ---
+policy -> HTTP 200
+  {"trace_id": "b66d1456-810b-417f-ac9c-02e5b8bf10da", "answer": "Illustrative policy: Beauty products may be returned within 7 days when unopened and in original packaging. Apparel and Footwear may be returned within 10 days if unused with tags attached. Home and Electronics items may be returned within 7 days, subject to product-specific exclusions and inspection.", "intent": "policy", "grounded": true, "sources": ["return-window", "warranty"], "order_status": null, "escalation_score": null, "escalation_recommended": null, "trace_notes": ["Retrieval Agent invoked RAG tool", "cache miss", "revi
+order -> HTTP 200
+  {"trace_id": "e25dcdc5-ef50-43be-930a-12106266f0a5", "answer": "Order NYK-0001 is Placed. Order value: ₹16415. Escalation score: 0.220. No escalation threshold reached.", "intent": "order_status", "grounded": true, "sources": [], "order_status": "Placed", "escalation_score": 0.22, "escalation_recommended": false, "trace_notes": ["Lookup Agent invoked check_order_status"]}
+pii (masked in log) -> HTTP 200
+  {"trace_id": "e89164ed-7031-4051-82f5-cda993e2b094", "answer": "For an eligible COD return, the customer must provide a supported bank account or approved refund method. After the returned item passes inspection, the illustrative refund target is 5–7 business days. Refund timing depends on payment method and payment-provider processing.", "intent": "policy", "grounded": true, "sources": ["cod-refunds", "cancellation", "privacy-and-pii"], "order_status": null, "escalation_score": null, "escalation_recommended": null, "trace_notes": ["Retrieval Agent invoked RAG tool", "cache miss", "review stag
+--- POST /ask (CrewAI .kickoff() path, use_crew=true) ---
+crew policy -> HTTP 200
+  {"trace_id": "c2f842e0-42ce-4436-806b-59368cd53c05", "answer": "Illustrative policy: Beauty products may be returned within 7 days when unopened and in original packaging. Apparel and Footwear may be returned within 10 days if unused with tags attached. Home and Electronics items may be returned within 7 days, subject to product-specific exclusions and inspection.", "intent": "policy", "grounded": true, "sources": [], "order_status": null, "escalation_score": null, "escalation_recommended": null, "trace_notes": ["CrewAI .kickoff(): Retrieval Agent -> retrieve_policy -> Composer"]}
+crew order -> HTTP 200
+  {"trace_id": "ae572099-cf84-46be-99e8-669a5c96a049", "answer": "Order NYK-0001 is Placed. Order value: Rs.16415. Escalation score: 0.220. No escalation threshold reached.", "intent": "order_status", "grounded": true, "sources": [], "order_status": "Placed", "escalation_score": 0.22, "escalation_recommended": false, "trace_notes": ["CrewAI .kickoff(): Lookup Agent -> check_order_status"]}
+--- POST /ask guardrails ---
+injection (expect 400) -> HTTP 400
+  {"detail": "Prompt-injection guard blocked the request."}
+over budget (expect 413) -> HTTP 413
+  {"detail": "Request has 5000 characters; budget is 3000."}
+--- POST /add-document ---
+add-document -> HTTP 200
+  {"trace_id": "29083edb-25ca-4f5d-a41e-ad17711f47b7", "status": "added", "doc_id": "demo-note", "note": "Index is in-memory and rebuilds locally; document is not persisted to disk."}
+--- WebSocket /ws/chat ---
+ws reply 1: {"trace_id": "9836e945-8306-439d-a6d7-492ff992d8bc", "answer": "For an eligible COD return, the customer must provide a supported bank account or approved refund method. After the returned item passes inspection, the illustrative refund target is 5–7 business days. Refund timing depends on payment method and payment-provider processing.", "intent": "policy", "grounded": true, "sources": ["cod-refu
+ws reply 2 (bad payload): {"trace_id": "06a9e32f-4752-4fd2-81e6-5b9f7cbcb86d", "error": "1 validation error for AskRequest\nquery\n  Field required [type=missing, input_value={'not': 'a valid query'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing"}
+ws reply 3: {"trace_id": "7accafed-c9a0-4be3-95a3-c603f8f345d4", "answer": "Order NYK-0001 is Placed. Order value: ₹16415. Escalation score: 0.220. No escalation threshold reached.", "intent": "order_status", "grounded": true, "sources": [], "order_status": "Placed", "escalation_score": 0.22, "escalation_recommended": false, "trace_notes": ["Lookup Agent invoked check_order_status"]}
+ws client disconnected mid-conversation (context manager closed the socket).
+ws reply after reconnect: {"trace_id": "544d0406-8c4e-447b-b864-34a0ef05e353", "answer": "Reverse pickup is available only for eligible PIN codes and return reasons. The item must meet the category return conditions and be packed safely with included accessories. If pickup is unavailable, support may provide an alternate return instruction after checking the order.", "intent": "policy", "grounded": true, "sources": ["rever
+Server still serving a new client after the earlier disconnect: OK
+GET /health after disconnect -> HTTP 200
+  {"status": "ok", "rag_mode": "sentence-transformers+chromadb"}
