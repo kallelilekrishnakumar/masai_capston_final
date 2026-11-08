@@ -1,1 +1,148 @@
 # masai_capston_final
+# Nykaa Domain Support Agent — Capstone Project
+
+A local-first, MOCK_LLM-compatible implementation of the Nykaa e-commerce support capstone. It includes deterministic order data, a 12-topic policy knowledge base, two RAG chunking/indexing strategies, a 3-agent CrewAI adapter, session memory, Pydantic outputs, input/output guardrails, FastAPI + WebSocket, JSONL observability, 15-query evaluation, an AutoGen review adapter, governance controls, and a response cache.
+
+> **Demo-data notice:** All customers, orders, addresses, and identifiers are fabricated. This is an educational prototype, not an official Nykaa policy engine. The policies are illustrative and must not be represented as Nykaa's actual policies.
+
+## Quick start (zero API keys)
+
+Python 3.11 recommended.
+
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+# Optional but recommended: downloads the free local embedding model on first build.
+python run_demo.py
+uvicorn app:app --reload
+```
+
+All deterministic acceptance demos run under `MOCK_LLM=1`; **no hosted LLM API key is required** (CrewAI uses a local `MockCrewLLM`, the AutoGen review uses a local `MockReviewModelClient`). SentenceTransformers downloads `sentence-transformers/all-MiniLM-L6-v2` on first use. If that package/model is unavailable, the RAG core deliberately falls back to a local word-overlap retriever so the demo remains runnable; that fallback is not equivalent to semantic embeddings.
+
+## How to run
+
+Run everything from the `nykaa-domain-support-agent/` folder (the repo root).
+
+```bash
+pytest -q                 # unit + API/WebSocket tests
+python run_demo.py        # end-to-end acceptance demo; writes the artifacts below
+python run_api_demo.py    # exercises the FastAPI app in-process; writes api_transcript.txt
+uvicorn app:app --reload  # serve the API at http://127.0.0.1:8000 (docs at /docs)
+```
+
+`run_demo.py` writes to `artifacts/`: `demo_transcript.txt`, `rag_metrics.json`, `evaluation.json`, `orders.json`, `crew_transcript.txt` (CrewAI `.kickoff()`), `autogen_transcript.txt` (AutoGen review), `memory_transcript.txt` (LangChain memory). `run_api_demo.py` writes `api_transcript.txt` (HTTP + WebSocket, including a client disconnect and reconnect).
+
+**Choosing the orchestration path.** `POST /ask` and the WebSocket accept `"use_crew": true` to answer via the real CrewAI `.kickoff()` crew; omitted/`false` uses the fast deterministic router (the default). Both return the same `SupportResponse` schema. Example:
+
+```bash
+curl -X POST http://127.0.0.1:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"query":"What is the return window for Beauty products?","use_crew":true}'
+```
+
+## Layout
+
+- `dataset.py`: seeded generator for 50 orders, validation, category/status distribution.
+- `knowledge_base/`: 13 policy documents (the 12 required topics plus privacy/PII).
+- `mock_llm.py`: deterministic CrewAI model used so `.kickoff()` runs with no API keys.
+- `conftest.py`: puts the project root on `sys.path` for pytest.
+- `rag.py`: fixed-overlap and sentence chunking; separate Chroma collections when dependencies are available; similarity measurement, grounded fallback, precision/recall.
+- `agents.py`: Pydantic response schema, tool functions, session memory, guardrails, mock orchestration, optional CrewAI crew factory.
+- `review_stage.py`: deterministic two-reviewer mock stage and optional AutoGen RoundRobinGroupChat adapter.
+- `governance.py`: least-autonomy allow-list, request budget, normalized-query cache.
+- `app.py`: FastAPI `/ask`, `/add-document`, `/health`, and `/ws/chat`; JSONL logging with masked text and trace IDs.
+- `evaluation.py`: 15-query test set, per-query Accuracy/Grounding/Completeness/Safety scores and averages.
+- `run_demo.py`: end-to-end acceptance demo; writes the `artifacts/` transcripts and metrics.
+- `run_api_demo.py`: drives the FastAPI app in-process; writes `artifacts/api_transcript.txt`.
+- `tests/`: `test_core.py` (unit) and `test_api_and_guards.py` (guards, escalation, memory, evaluation, API, WebSocket).
+
+## RAG threshold calibration
+
+Run `python run_demo.py` and inspect `artifacts/rag_metrics.json`. It records observed top-1 similarity for 3 in-scope and 2 out-of-scope calibration queries and selects a threshold between the observed clusters when they separate. On this machine (SentenceTransformers `all-MiniLM-L6-v2` + ChromaDB, cosine) the measured top-1 values were:
+
+- in-scope: 0.526–0.860 (fixed), 0.531–0.885 (sentence)
+- out-of-scope: 0.062–0.104
+- chosen "I don't know" thresholds: ≈0.315 (fixed), ≈0.314 (sentence)
+
+The clusters are well separated (lowest in-scope 0.526 > highest out-of-scope 0.104), so the threshold is a defensible midpoint rather than an untested 0.5/0.6/0.7 preset. Because embedding implementations and versions can differ, these values are generated on the machine where you run the script; rerun after any dependency change and use the resulting measurements.
+
+## Dataset design choices
+
+The generator uses seed `20261011`, 50 records, and INR order values from ₹299 to ₹24,999 to represent a broad illustrative mix of beauty, apparel, electronics, home, and footwear orders. It guarantees category coverage by weighted deterministic generation, while delayed shipments are sampled at 20%; it validates that the resulting rate lies in the required 10–30% band rather than editing individual records after generation.
+
+Escalation score (`dataset.escalation_score`, used by `check_order_status`):
+
+`score = status_factor * (0.4 * delayed_shipment + 0.6 * days_since_created / 30)`, where `status_factor = 1.0` for `Placed`/`Shipped` and `0.5` for `Delivered`/`Returned`/`Refunded` (already-resolved orders de-escalate). The result is in `[0, 1]`.
+
+Both signals matter on their own: a very old, non-delayed open order can outrank a recent delayed one, so this is not a bare boolean of `delayed_shipment`. **Recommended escalation threshold = the 80th percentile of the scores over the generated 50 orders** (`dataset.ESCALATION_THRESHOLD`; the exact value is printed by `python dataset.py` as `escalation_threshold_p80`). By construction this flags about the top 20% of orders for review. Run `python dataset.py` to see the counts and the threshold.
+
+Generated data (seed `20261011`): categories Apparel 8, Electronics 9, Home 11, Footwear 8, Beauty 14; statuses Placed 5, Shipped 12, Delivered 15, Returned 7, Refunded 11; 14.0% delayed shipments. Order values are drawn uniformly from ₹299 to ₹24,999 as a broad illustrative range spanning low-cost beauty items to high-cost electronics.
+
+## Chunking comparison (reproducible local baseline)
+
+The checked-in `artifacts/rag_metrics.json` is generated by `python run_demo.py` and includes per-query precision/recall for each strategy (document-level: chunks mapped to parent docs and deduped), scored against an explicit gold set for the five queries. On this machine (SentenceTransformers + ChromaDB):
+
+| query | fixed P ; R | sentence P ; R |
+|---|---|---|
+| return window (Beauty) | 1/3 ; 1/1 | 1/2 ; 1/1 |
+| COD refund | 1/3 ; 1/1 | 1/3 ; 1/1 |
+| delivery SLA | 1/3 ; 1/1 | 1/3 ; 1/1 |
+| exchange an Apparel size | 1/3 ; 1/1 | 1/3 ; 1/1 |
+| damaged item | 1/2 ; 1/1 | 1/2 ; 1/1 |
+
+Means: fixed precision **0.366**, recall **1.000**; sentence precision **0.400**, recall **1.000**. Both strategies retrieve every relevant document (recall 1.0); sentence returns fewer irrelevant docs on the return-window query (2 retrieved vs 3), so it has the higher precision. I deploy **sentence** chunking for this corpus, and the orchestrator/API default retriever is set to `sentence`. These are environment-specific numbers, not a promise that another embedding backend reproduces them; rerun the script after dependency changes and use the resulting measurements.
+
+## Evaluation methodology
+
+`evaluation.py` defines an LLM-as-judge prompt (`JUDGE_PROMPT`: question, retrieved context, answer, expected behaviour, four-property rubric, JSON output) and renders it for each of the 15 test queries (all 12 required KB topics, one out-of-scope, one PII edge case, one injection attempt). Under `MOCK_LLM` the judge is `MockJudge`, a deterministic stand-in that scores from the same fields: accuracy (expected source cited, or correct refusal), grounding (answer-token overlap with the context), completeness (query-term coverage, or a clear refusal), safety (no PII, no unsupported guarantee, no instruction-following). `artifacts/evaluation.json` stores the prompt template, every rendered prompt, the four scores per query and the four averages. These are **not independent model judgments**; plug a real model client into the same prompt for that.
+
+## Session memory
+
+`agents.MemoryChat` uses LangChain's `InMemoryChatMessageHistory` + `RunnableWithMessageHistory` (it emits the expected `LangChainDeprecationWarning`; the class still works). Memory is in-process only, stored masked, and changes behaviour: "What about Apparel?" and "Is it delayed?" are resolved from earlier turns of the same session. `artifacts/memory_transcript.txt` has a multi-turn transcript with state carried and a separate fresh-session transcript where the same follow-ups ask for clarification.
+
+## CrewAI and AutoGen
+
+Everything runs with **zero API keys**:
+
+- **CrewAI:** `agents.build_crewai_crew()` builds a real 3-agent crew (Retrieval, Lookup, Response Composer). `run_demo.py` runs it with `.kickoff()` on a policy query and an order query. The "brain" is `mock_llm.MockCrewLLM`, a deterministic ReAct-style model, so CrewAI's own agent loop calls the real tools. Its behaviour is scripted (keyword and order-ID routing); it is not a real model. Evidence: `artifacts/crew_transcript.txt`. Only the Lookup Agent is wired to `check_order_status`.
+- **AutoGen:** `review_stage.run_autogen_review()` runs a real `RoundRobinGroupChat` (Policy-Compliance-Reviewer + Final-Editor, `max_turns=2`, `Verdict` structured output, `custom_message_types=[StructuredMessage[Verdict]]`) driven by `MockReviewModelClient`, which is deterministic (phrase matching), not a real model. Evidence: `artifacts/autogen_transcript.txt` (one approve-unchanged case, one revise case).
+- **Request path:** the API and `SupportOrchestrator` use the fast deterministic `review_draft` reviewer for every grounded policy answer; the full AutoGen team is demonstrated by `run_demo.py`.
+- A real model client (for example Ollama) can be passed in place of either mock; that is the only optional, key-dependent setup.
+
+## API examples
+
+```bash
+curl -X POST http://127.0.0.1:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"query":"What is the return window for Beauty products?","session_id":"demo-1"}'
+
+curl -X POST http://127.0.0.1:8000/add-document \
+  -H "Content-Type: application/json" \
+  -d '{"doc_id":"custom-note","title":"Demo note","text":"Illustrative demo policy. Contact support for details."}'
+```
+
+WebSocket: connect to `ws://127.0.0.1:8000/ws/chat`, then send JSON such as `{"query":"What is the return window?","session_id":"ws-1"}`. `WebSocketDisconnect` is handled per connection.
+
+## Security and governance
+
+- Phone numbers and card last-4 values are masked before processing/logging.
+- Prompt-injection phrases are rejected before orchestration.
+- The groundedness guard refuses unsupported questions.
+- Only the Lookup Agent is assigned the order-status tool in the CrewAI adapter; an allow-list guard rejects unauthorized callers.
+- The runtime budget rejects overlong requests before processing.
+- Cache keys normalize case and whitespace; cache hits avoid repeating grounded generation.
+- Free-text names/addresses cannot be reliably identified by a keyless fixed-pattern masker. This project uses fabricated examples only and documents that limitation.
+
+## Risk classification and least autonomy (Task 15)
+
+**Risk level: Medium.** Per the brief's scheme (Low: summarization/transcription; Medium: code generation / customer-support tickets; High: medical, hiring, financial data), this is a customer-support tool: it answers policy questions and surfaces order status for support tickets, which is the Medium band.
+
+It is **advisory only** — it does not modify orders, process payments, issue refunds, or take any account action; a human remains the decision-maker before anything acts on its output. The data it handles is limited to fabricated order identifiers and masked PII: phone numbers and card last-4 are masked before the model and before logging (Task 10), and free-text names/addresses are documented as out of scope for a keyless masker (fabricated examples only). The residual risk is advisory misinformation rather than irreversible real-world action, mitigated by retrieval grounding, the calibrated "I don't know" fallback, and the AutoGen review stage that approves or revises draft answers before release.
+
+**Least autonomy (Application layer).** The order-status tool is restricted by the principle of least autonomy: only the **Lookup Agent** may call `check_order_status`. `governance.py` holds an allow-list, `{"Lookup Agent": {"check_order_status"}}`, and `enforce_tool_access(agent_name, "check_order_status")` raises `UnauthorizedToolUse` for any other caller. In the CrewAI crew only the Lookup Agent is wired to the `check_order_status` tool — the Retrieval Agent receives `retrieve_policy` and the Response Composer receives no tools, so the order tool is unreachable from them. The transcript demonstrates the guard firing: calling `check_order_status` as the Response Composer raises `UnauthorizedToolUse`.
+
+## Limitations
+
+This project is a learning capstone scaffold. Mock answer generation is extractive/deterministic, not a real generative model. ChromaDB/embeddings, CrewAI, and AutoGen integrations are optional adapters and should be tested against the versions installed in your environment. Do not deploy with real customer PII or treat the illustrative policy text as official.
