@@ -1,0 +1,27 @@
+=== SESSION MEMORY (LangChain InMemoryChatMessageHistory + RunnableWithMessageHistory) ===
+--- Transcript A: session 'conv-a' (state carried across turns) ---
+User: What is the return window for Beauty products?
+  intent=policy; grounded=True; messages_in_history=2
+  Agent: Illustrative policy: Beauty products may be returned within 7 days when unopened and in original packaging. Apparel and Footwear may be returned within 10 days if unused with tags attached. Home and E
+  notes: ['Retrieval Agent invoked RAG tool', 'cache hit', 'review stage: approved=True | No unsupported claim detected; approved unchanged.']
+User: What about Apparel?
+  intent=policy; grounded=True; messages_in_history=4
+  Agent: Illustrative policy: Beauty products may be returned within 7 days when unopened and in original packaging. Apparel and Footwear may be returned within 10 days if unused with tags attached. Size excha
+  notes: ['Retrieval Agent invoked RAG tool', 'cache miss', 'review stage: approved=True | No unsupported claim detected; approved unchanged.', "memory: follow-up resolved from earlier turn -> 'What is the return window for Apparel products?'"]
+User: Please check order NYK-0001
+  intent=order_status; grounded=True; messages_in_history=6
+  Agent: Order NYK-0001 is Placed. Order value: ₹16415. Escalation score: 0.220. No escalation threshold reached.
+  notes: ['Lookup Agent invoked check_order_status']
+User: Is it delayed?
+  intent=order_status; grounded=True; messages_in_history=8
+  Agent: Order NYK-0001 is Placed. Order value: ₹16415. Escalation score: 0.220. No escalation threshold reached.
+  notes: ['Lookup Agent invoked check_order_status', "memory: follow-up resolved from earlier turn -> 'Is it delayed? (NYK-0001)'"]
+--- Transcript B: fresh session 'conv-b' (no state; same follow-ups cannot be resolved) ---
+User: What about Apparel?
+  intent=unsupported; grounded=False; messages_in_history=2
+  Agent: I need a bit more context: which policy topic or order do you mean? Please include the product category or an order ID like NYK-0001.
+  notes: ['memory: follow-up with no prior context in this session']
+User: Is it delayed?
+  intent=unsupported; grounded=False; messages_in_history=4
+  Agent: I need a bit more context: which policy topic or order do you mean? Please include the product category or an order ID like NYK-0001.
+  notes: ['memory: follow-up with no prior context in this session']
