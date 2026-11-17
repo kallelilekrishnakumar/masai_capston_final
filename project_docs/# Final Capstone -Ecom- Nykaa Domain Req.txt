@@ -235,3 +235,13 @@ Submit **one public GitHub repository link**. The repository must contain, in to
 deployment code with transcripts demonstrating every task above, and a `README.md`
 confirming everything runs under `MOCK_LLM` with zero API keys. There is exactly one
 submission link for the whole project.
+//Check
+pip install -r requirements.txt
+pytest -q
+python run_demo.py
+python run_api_demo.py
+The new files from that run are 
+memory_transcript.txt
+ (which doesn't exist yet) and a refreshed 
+demo_transcript.txt
+. The api_transcript.txt and the other transcripts should also be regenerated and committed
