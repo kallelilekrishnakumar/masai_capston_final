@@ -118,3 +118,19 @@ def test_evaluation_has_15_rows_four_scores_and_prompt():
     assert ev["count"] == 15 and set(ev["averages"]) == {"accuracy", "grounding", "completeness", "safety"}
     assert all(set(r["scores"]) == set(ev["averages"]) and "QUESTION:" in r["judge_prompt"] for r in ev["rows"])
     assert all(1 <= v <= 5 for r in ev["rows"] for v in r["scores"].values())
+
+
+def test_ask_via_crew_returns_valid_schema(client):
+    r = client.post("/ask", json={"query": "What is the return window for Beauty products?", "use_crew": True})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["intent"] in ("policy", "unsupported") and isinstance(body["answer"], str) and body["answer"]
+    r2 = client.post("/ask", json={"query": "Please check order NYK-0001", "use_crew": True})
+    assert r2.status_code == 200 and r2.json()["intent"] == "order_status"
+    assert r2.json()["escalation_score"] is not None
+
+
+def test_crew_answer_is_support_response():
+    from agents import SupportOrchestrator, crew_answer, SupportResponse
+    r = crew_answer("What is the delivery SLA after dispatch?", SupportOrchestrator())
+    assert isinstance(r, SupportResponse) and r.answer
